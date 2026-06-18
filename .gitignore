@@ -1,0 +1,14 @@
+# SSH host keys (generated at first run)
+.ssh/
+
+# Build output
+/terminal.chakri.me
+/bin/
+/dist/
+*.out
+
+# Deploy config (host details / secrets)
+.env.deploy
+
+# Go
+vendor/
