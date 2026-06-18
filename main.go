@@ -4,11 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand/v2"
 	"net"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
+
+	"github.com/common-nighthawk/go-figure"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -69,6 +73,14 @@ func envOr(key, def string) string {
 	return def
 }
 
+// figletFonts is a curated set of go-figure fonts that render legibly and
+// aren't absurdly wide. One is chosen at random per login.
+var figletFonts = []string{
+	"standard", "slant", "small", "smslant", "big", "doom", "ogre",
+	"speed", "colossal", "shadow", "script", "drpepper", "chunky",
+	"graffiti", "basic", "banner", "epic", "larry3d", "starwars", "block",
+}
+
 // teaHandler returns a new Bubble Tea program for each SSH session.
 func teaHandler(s ssh.Session) (tea.Model, []tea.ProgramOption) {
 	pty, _, _ := s.Pty()
@@ -77,8 +89,16 @@ func teaHandler(s ssh.Session) (tea.Model, []tea.ProgramOption) {
 		width:  pty.Window.Width,
 		height: pty.Window.Height,
 		user:   s.User(),
+		admin:  isAdmin(s.User()),
+		font:   figletFonts[rand.IntN(len(figletFonts))],
 	}
 	return m, []tea.ProgramOption{tea.WithAltScreen()}
+}
+
+// figlet renders text as ASCII art in the given font, trimmed of blank edges.
+func figlet(text, font string) string {
+	out := figure.NewFigure(text, font, false).String()
+	return strings.Trim(out, "\n")
 }
 
 type model struct {
@@ -86,6 +106,20 @@ type model struct {
 	width  int
 	height int
 	user   string
+	admin  bool
+	font   string // random figlet font for this session
+}
+
+// isAdmin reports whether the connecting username is in the ADMIN_USERS list
+// (comma-separated, defaults to "chakri"). Username-based — fine for a fun
+// easter-egg screen; not a security boundary.
+func isAdmin(user string) bool {
+	for a := range strings.SplitSeq(envOr("ADMIN_USERS", "chakri"), ",") {
+		if strings.EqualFold(strings.TrimSpace(a), user) {
+			return true
+		}
+	}
+	return false
 }
 
 func (m model) Init() tea.Cmd {
@@ -107,17 +141,67 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
-	title := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("212")).
-		Render("terminal.chakri.me")
+	if m.admin {
+		return m.adminView()
+	}
 
-	body := fmt.Sprintf(
-		"%s\n\nWelcome, %s 👋\n\nYou're connected over SSH.\nTerminal: %s (%dx%d)\n\nPress q to quit.",
-		title, m.user, m.term, m.width, m.height,
+	accent := lipgloss.Color("212")
+	dim := lipgloss.NewStyle().Foreground(lipgloss.Color("245"))
+
+	banner := lipgloss.NewStyle().Bold(true).Foreground(accent).
+		Render(figlet("chakri", m.font))
+	subtitle := lipgloss.NewStyle().Foreground(accent).Render("terminal.chakri.me")
+
+	body := lipgloss.JoinVertical(lipgloss.Left,
+		banner,
+		subtitle,
+		"",
+		fmt.Sprintf("Welcome, %s 👋", m.user),
+		"",
+		dim.Render(fmt.Sprintf("connected over SSH · %s · font: %s", m.term, m.font)),
+		dim.Render("press q to quit"),
 	)
 
-	return lipgloss.NewStyle().
-		Padding(1, 2).
-		Render(body)
+	return lipgloss.NewStyle().Padding(1, 2).Render(body)
+}
+
+// adminView greets the operator with the deploy cheat-sheet instead of the
+// public welcome screen.
+func (m model) adminView() string {
+	accent := lipgloss.Color("212")
+
+	banner := lipgloss.NewStyle().Bold(true).Foreground(accent).
+		Render(figlet("deploy", m.font))
+
+	key := lipgloss.NewStyle().Bold(true).Foreground(accent)
+	dim := lipgloss.NewStyle().Foreground(lipgloss.Color("245"))
+
+	steps := lipgloss.JoinVertical(lipgloss.Left,
+		lipgloss.NewStyle().Bold(true).Foreground(accent).
+			Render(fmt.Sprintf("welcome back, %s 😎", m.user)),
+		"",
+		lipgloss.NewStyle().Bold(true).Render("🚀 Ship a new version"),
+		"",
+		"  "+key.Render("make deploy")+dim.Render("   # build → ship → swap → restart"),
+		"",
+		lipgloss.NewStyle().Bold(true).Render("🔧 Admin the box  (port 2222)"),
+		"",
+		"  "+key.Render("ssh -p 2222 root@terminal.chakri.me"),
+		"  "+dim.Render("systemctl status terminal-app"),
+		"  "+dim.Render("journalctl -u terminal-app -f"),
+		"",
+		dim.Render("  full runbook → DEPLOY.md"),
+	)
+
+	box := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(accent).
+		Padding(1, 3).
+		Render(lipgloss.JoinVertical(lipgloss.Left, banner, "", steps))
+
+	footer := dim.Render(fmt.Sprintf("logged in as %s · %s · press q to quit", m.user, m.term))
+
+	return lipgloss.NewStyle().Padding(1, 2).Render(
+		lipgloss.JoinVertical(lipgloss.Left, box, "", footer),
+	)
 }

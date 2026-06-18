@@ -32,6 +32,8 @@ github.com/charmbracelet/x/termios v0.1.0 h1:y4rjAHeFksBAfGbkRDmVinMg7x7DELIGAFb
 github.com/charmbracelet/x/termios v0.1.0/go.mod h1:H/EVv/KRnrYjz+fCYa9bsKdqF3S8ouDK0AZEbG7r+/U=
 github.com/charmbracelet/x/windows v0.2.0 h1:ilXA1GJjTNkgOm94CLPeSz7rar54jtFatdmoiONPuEw=
 github.com/charmbracelet/x/windows v0.2.0/go.mod h1:ZibNFR49ZFqCXgP76sYanisxRyC+EYrBE7TTknD8s1s=
+github.com/common-nighthawk/go-figure v0.0.0-20210622060536-734e95fb86be h1:J5BL2kskAlV9ckgEsNQXscjIaLiOYiZ75d4e94E6dcQ=
+github.com/common-nighthawk/go-figure v0.0.0-20210622060536-734e95fb86be/go.mod h1:mk5IQ+Y0ZeO87b858TlA645sVcEcbiX6YqP98kt+7+w=
 github.com/creack/pty v1.1.21 h1:1/QdRyBaHHJP61QkWMXlOIBfsgdDeeKfK8SYVUWJKf0=
 github.com/creack/pty v1.1.21/go.mod h1:MOBLtS5ELjhRRrroQr9kyvTxUAFNvYEK993ew/Vr4O4=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=

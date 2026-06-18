@@ -19,62 +19,32 @@ Configuration is via env vars: `HOST` (default `0.0.0.0`), `PORT` (default
 
 ## Deploying to a VPS
 
+**Full step-by-step is in [`DEPLOY.md`](./DEPLOY.md) — read that.** Short version:
+
 The model: **build a static binary locally → ship it → run as a hardened
-`systemd` service** that binds port 22 (so users connect with a bare
-`ssh terminal.chakri.me`). No Go toolchain on the VPS. Updates are one command.
-
-### 1. Configure
+`systemd` service** on port 22 (users connect with a bare `ssh terminal.chakri.me`),
+with your admin `sshd` moved to port 2222. No Go toolchain on the VPS.
 
 ```sh
-cp .env.deploy.example .env.deploy
-# edit VPS_HOST / VPS_USER / VPS_SSH_PORT
+cp .env.deploy.example .env.deploy   # set VPS_HOST / VPS_USER / VPS_SSH_PORT
+make provision                       # one-time: install the service + move-helper
+# ...do the port move (see DEPLOY.md), then set VPS_SSH_PORT=2222...
+make deploy                          # every update after that
 ```
 
-### 2. Move admin SSH off port 22 (so the app can use it)
-
-The app wants port 22, but that's where normal `sshd` lives. Move it
-**safely** (no lockout) with the helper — on the VPS, as root:
+### Useful VPS commands (admin is on port 2222)
 
 ```sh
-# (provision in step 3 copies this script to /tmp on the VPS)
-sudo bash /tmp/move-admin-sshd.sh add        # admin sshd now on BOTH 22 and 2222
-# open a NEW terminal and confirm:  ssh -p 2222 <user>@<vps>
-sudo bash /tmp/move-admin-sshd.sh finalize    # drop 22 — now free for the app
-```
-
-After this, admin port is `2222`; keep `VPS_SSH_PORT=2222` in `.env.deploy`.
-
-> On a brand-new box admin sshd is still on 22, so run the first provision
-> with `VPS_SSH_PORT=22 make provision`, then do the move above.
-
-### 3. Provision (one time)
-
-```sh
-make provision    # installs the service user, data dir, and systemd unit
-```
-
-### 4. Deploy (every update)
-
-```sh
-make deploy       # cross-compiles, uploads, atomic-swaps the binary, restarts
-```
-
-That's the whole update loop: commit changes, then `make deploy`. The
-script builds `linux/amd64`, ships it, swaps the binary atomically (no
-`ETXTBSY`), and restarts the service.
-
-### Useful VPS commands
-
-```sh
-systemctl status terminal-app
-journalctl -u terminal-app -f          # live logs
-systemctl restart terminal-app
+ssh -p 2222 root@terminal.chakri.me 'systemctl status terminal-app'
+ssh -p 2222 root@terminal.chakri.me 'journalctl -u terminal-app -f'   # live logs
+ssh -p 2222 root@terminal.chakri.me 'systemctl restart terminal-app'
 ```
 
 ## How it fits together
 
 | File                         | Purpose                                              |
 | ---------------------------- | ---------------------------------------------------- |
+| `DEPLOY.md`                  | The deploy runbook — the port move + update loop     |
 | `main.go`                    | Wish SSH server + Bubble Tea TUI                     |
 | `scripts/setup.sh`           | Provisions the service on the VPS (run by provision) |
 | `scripts/provision.sh`       | Pushes & runs `setup.sh` on the VPS                  |
