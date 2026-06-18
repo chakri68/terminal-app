@@ -46,7 +46,7 @@ func main() {
 
 // runLocal renders the TUI in the attached terminal using flag-supplied params.
 func runLocal(user, term, font string) error {
-	m := newModel(user, term, font, 0, 0)
+	m := newModel(user, term, font, 0, 0, nil) // nil → default (local stdout) renderer
 	_, err := tea.NewProgram(m, tea.WithAltScreen()).Run()
 	return err
 }
@@ -101,9 +101,11 @@ func envOr(key, def string) string {
 	return def
 }
 
-// teaHandler returns a new Bubble Tea program for each SSH session.
+// teaHandler returns a new Bubble Tea program for each SSH session. It hands the
+// model a renderer bound to this session so colors match the client's terminal.
 func teaHandler(s ssh.Session) (tea.Model, []tea.ProgramOption) {
 	pty, _, _ := s.Pty()
-	m := newModel(s.User(), pty.Term, "", pty.Window.Width, pty.Window.Height)
+	r := bubbletea.MakeRenderer(s)
+	m := newModel(s.User(), pty.Term, "", pty.Window.Width, pty.Window.Height, r)
 	return m, []tea.ProgramOption{tea.WithAltScreen()}
 }

@@ -28,7 +28,7 @@ func stripANSI(s string) string {
 }
 
 func TestGuestView(t *testing.T) {
-	m := newModel("alice", "xterm-256color", "standard", 80, 24)
+	m := newModel("alice", "xterm-256color", "standard", 80, 24, nil)
 	if m.admin {
 		t.Fatalf("alice should not be an admin")
 	}
@@ -47,7 +47,7 @@ func TestGuestView(t *testing.T) {
 }
 
 func TestAdminView(t *testing.T) {
-	m := newModel("chakri", "xterm-256color", "standard", 80, 24)
+	m := newModel("chakri", "xterm-256color", "standard", 80, 24, nil)
 	if !m.admin {
 		t.Fatalf("chakri should be an admin")
 	}
@@ -83,7 +83,7 @@ func TestIsAdmin(t *testing.T) {
 // TestUpdateTickAnimates verifies a tick advances the animation frame and keeps
 // the loop going by issuing another command.
 func TestUpdateTickAnimates(t *testing.T) {
-	m := newModel("guest", "xterm-256color", "standard", 80, 24)
+	m := newModel("guest", "xterm-256color", "standard", 80, 24, nil)
 
 	updated, cmd := m.Update(tickMsg{})
 	if cmd == nil {
@@ -96,7 +96,7 @@ func TestUpdateTickAnimates(t *testing.T) {
 
 // TestUpdateQuit verifies the quit keys each return a command (tea.Quit).
 func TestUpdateQuit(t *testing.T) {
-	m := newModel("guest", "xterm-256color", "standard", 80, 24)
+	m := newModel("guest", "xterm-256color", "standard", 80, 24, nil)
 	keys := []tea.KeyMsg{
 		{Type: tea.KeyRunes, Runes: []rune{'q'}},
 		{Type: tea.KeyCtrlC},
@@ -113,7 +113,7 @@ func TestUpdateQuit(t *testing.T) {
 // the underlying characters.
 func TestShimmerPreservesText(t *testing.T) {
 	const text = "✨ coming soon"
-	if got := stripANSI(shimmer(text, 7)); got != text {
+	if got := stripANSI(shimmer(nil, text, 7)); got != text {
 		t.Errorf("shimmer altered text: got %q, want %q", got, text)
 	}
 }
