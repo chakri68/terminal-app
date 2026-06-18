@@ -101,6 +101,25 @@ func figlet(text, font string) string {
 	return strings.Trim(out, "\n")
 }
 
+// shimmerColors is a small pink→white→pink palette swept across the text to
+// create a moving highlight (the "shine" passing over the headline).
+var shimmerColors = []string{"205", "211", "212", "218", "225", "231", "225", "218", "212", "211"}
+
+// shimmer renders text bold with a bright spot that moves left-to-right as
+// frame advances, leaving the rest in the accent pink.
+func shimmer(text string, frame int) string {
+	runes := []rune(text)
+	var b strings.Builder
+	for i, r := range runes {
+		// Position in the palette wave; subtracting frame makes it travel.
+		idx := ((i-frame)%len(shimmerColors) + len(shimmerColors)) % len(shimmerColors)
+		style := lipgloss.NewStyle().Bold(true).
+			Foreground(lipgloss.Color(shimmerColors[idx]))
+		b.WriteString(style.Render(string(r)))
+	}
+	return b.String()
+}
+
 type model struct {
 	term   string
 	width  int
@@ -108,6 +127,17 @@ type model struct {
 	user   string
 	admin  bool
 	font   string // random figlet font for this session
+	frame  int    // animation tick counter for the guest screen
+}
+
+// tickMsg drives the guest screen's "coming soon" animation.
+type tickMsg time.Time
+
+// tick schedules the next animation frame (~12 fps).
+func tick() tea.Cmd {
+	return tea.Tick(time.Second/12, func(t time.Time) tea.Msg {
+		return tickMsg(t)
+	})
 }
 
 // isAdmin reports whether the connecting username is in the ADMIN_USERS list
@@ -123,7 +153,10 @@ func isAdmin(user string) bool {
 }
 
 func (m model) Init() tea.Cmd {
-	return nil
+	if m.admin {
+		return nil
+	}
+	return tick()
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -131,6 +164,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+	case tickMsg:
+		m.frame++
+		return m, tick()
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "q", "ctrl+c", "esc":
@@ -150,19 +186,36 @@ func (m model) View() string {
 
 	banner := lipgloss.NewStyle().Bold(true).Foreground(accent).
 		Render(figlet("chakri", m.font))
-	subtitle := lipgloss.NewStyle().Foreground(accent).Render("terminal.chakri.me")
 
-	body := lipgloss.JoinVertical(lipgloss.Left,
-		banner,
-		subtitle,
-		"",
-		fmt.Sprintf("Welcome, %s 👋", m.user),
-		"",
-		dim.Render(fmt.Sprintf("connected over SSH · %s · font: %s", m.term, m.font)),
-		dim.Render("press q to quit"),
+	hi := lipgloss.NewStyle().Bold(true).Foreground(accent).
+		Render(fmt.Sprintf("Hey there, %s 👋", m.user))
+
+	// Animated dots that grow and reset: "" → "." → ".." → "..."
+	dots := strings.Repeat(".", m.frame/3%4)
+	headline := shimmer("✨ Something awesome is coming soon"+dots, m.frame)
+
+	blurb := dim.Render("Pull up a chair — this terminal is still being built.\nCheck back later for something worth the wait.")
+
+	box := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(accent).
+		Padding(1, 3).
+		Render(lipgloss.JoinVertical(lipgloss.Left,
+			banner,
+			"",
+			hi,
+			"",
+			headline,
+			"",
+			blurb,
+		))
+
+	footer := dim.Render(fmt.Sprintf(
+		"terminal.chakri.me · connected over SSH · %s · press q to quit", m.term))
+
+	return lipgloss.NewStyle().Padding(1, 2).Render(
+		lipgloss.JoinVertical(lipgloss.Left, box, "", footer),
 	)
-
-	return lipgloss.NewStyle().Padding(1, 2).Render(body)
 }
 
 // adminView greets the operator with the deploy cheat-sheet instead of the
