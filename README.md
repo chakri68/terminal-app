@@ -1,9 +1,11 @@
 # terminal.chakri.me
 
-An SSH-accessible TUI app, like [terminal.shop](https://terminal.shop). Built
-with [Wish](https://github.com/charmbracelet/wish) +
-[Bubble Tea](https://github.com/charmbracelet/bubbletea). Users connect with a
-plain `ssh terminal.chakri.me` and get a terminal UI.
+My website, but you `ssh` into it. Shameless nod to
+[terminal.shop](https://terminal.shop) — they proved the bit works, so.
+You run `ssh terminal.chakri.me` and get a terminal UI instead of a web
+page. Built on [Wish](https://github.com/charmbracelet/wish) +
+[Bubble Tea](https://github.com/charmbracelet/bubbletea): Wish speaks SSH, Bubble
+Tea draws the screen.
 
 ## Local development
 
@@ -12,18 +14,21 @@ make run                 # starts on 0.0.0.0:2222
 ssh -p 2222 localhost    # connect (requires a PTY)
 ```
 
-The SSH host key is generated on first run at `.ssh/ssh_host_ed25519` (gitignored).
+First run generates the SSH host key at `.ssh/ssh_host_ed25519` (gitignored), so
+you don't have to.
 
-Configuration is via env vars: `HOST` (default `0.0.0.0`), `PORT` (default
-`2222`), `HOST_KEY_PATH` (default `.ssh/ssh_host_ed25519`).
+Everything's configured through env vars: `HOST` (default `0.0.0.0`), `PORT`
+(default `2222`), `HOST_KEY_PATH` (default `.ssh/ssh_host_ed25519`).
 
 ## Deploying to a VPS
 
-**Full step-by-step is in [`DEPLOY.md`](./DEPLOY.md) — read that.** Short version:
+**The real step-by-step lives in [`DEPLOY.md`](./DEPLOY.md) — go read that.** The
+short version:
 
-The model: **build a static binary locally → ship it → run as a hardened
-`systemd` service** on port 22 (users connect with a bare `ssh terminal.chakri.me`),
-with your admin `sshd` moved to port 2222. No Go toolchain on the VPS.
+Build a static binary locally, ship it, run it as a hardened `systemd` service on
+port 22 — so people connect with a bare `ssh terminal.chakri.me`, no port to
+remember. Your own admin `sshd` gets shoved to port 2222 to make room. No Go
+toolchain touches the VPS; it only ever sees the finished binary.
 
 ```sh
 cp .env.deploy.example .env.deploy   # set VPS_HOST / VPS_USER / VPS_SSH_PORT
@@ -32,7 +37,7 @@ make provision                       # one-time: install the service + move-help
 make deploy                          # every update after that
 ```
 
-### Useful VPS commands (admin is on port 2222)
+### Poking at the VPS (admin's on port 2222, remember)
 
 ```sh
 ssh -p 2222 root@terminal.chakri.me 'systemctl status terminal-app'
@@ -40,7 +45,7 @@ ssh -p 2222 root@terminal.chakri.me 'journalctl -u terminal-app -f'   # live log
 ssh -p 2222 root@terminal.chakri.me 'systemctl restart terminal-app'
 ```
 
-## How it fits together
+## What's where
 
 | File                         | Purpose                                              |
 | ---------------------------- | ---------------------------------------------------- |
